@@ -118,6 +118,9 @@
       cfgInicialRodando = false;
       console.warn('[painel] primeira configuração:', err && (err.code || err.message));
       if ((tentativa || 0) < 3) setTimeout(function () { primeiraConfig((tentativa || 0) + 1); }, 4000);
+      else if (st.autorizado) toast(err && err.code === 'permission-denied'
+        ? 'Não deu para criar os serviços padrão: as regras do Firestore recusaram. Publique o firestore.rules atual.'
+        : 'Não deu para criar os serviços padrão agora. Recarregue a página para tentar de novo.');
     });
   }
   function liberar() {
