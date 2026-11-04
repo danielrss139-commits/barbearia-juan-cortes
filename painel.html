@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com/firebasejs/; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com; manifest-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E0E0E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Juan Cortes">
+<title>Painel · Barbearia Juan Cortes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/hanken-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script src="firebase-config.js"></script>
+<script src="comum.js"></script>
+<style>
+  :root { color-scheme: dark; }
+
+  /* login */
+  .login { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+  .login header { padding-top: 7vh; display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center; }
+  .login header .muted { margin-left: auto !important; margin-right: auto !important; }
+  .login-foot { margin-top: auto; padding-top: 48px; display: grid; gap: 14px; }
+  .login-title { font-size: 30px; margin-top: 18px; }
+  .login-form { margin-top: 36px; }
+  .login-form .btn-primary { margin-top: 6px; }
+  .login-form .btn-text { margin-top: 6px; }
+  .login-msg { margin: -4px 0 14px; font-size: 14px; color: var(--danger); }
+  .login-msg.is-ok { color: var(--muted); }
+  .login-status { text-align: center; margin: 40px 0 0; }
+  .login.is-checking .login-form { display: none; }
+  .login:not(.is-checking) .login-status { display: none; }
+  .login-foot { padding-top: 28px; }
+
+  /* topo */
+  .top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 22px; }
+  .top::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--hair); transform-origin: 0 50%; }
+  .top .wordmark { display: block; line-height: 0; }
+  .top-date { text-align: right; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); line-height: 1.35; }
+  .top-date b { display: block; font-family: var(--serif); font-weight: 400; font-size: 17px; letter-spacing: 0; text-transform: none; color: var(--text); }
+
+  .view { padding-top: 26px; }
+  .view[hidden] { display: none; }
+
+  /* navegação inferior */
+  .nav.bar { padding-top: 0; padding-bottom: calc(6px + var(--safe-b)); }
+  .nav .tabs { max-width: 440px; margin: 0 auto; border-bottom: 0; }
+  .nav .tab { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; }
+  .nav .tab svg { width: 20px; height: 20px; }
+  .nav .tab svg * { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .nav .tab-ind { top: -1px; bottom: auto; }
+
+  /* seletor de dia */
+  .dayswitch { display: flex; align-items: center; gap: 8px; }
+  .dayswitch-mid { flex: 1; min-width: 0; text-align: center; }
+  .dayswitch-t { font-family: var(--serif); font-size: 28px; line-height: 1.1; }
+  .dayswitch-s { font-size: 13px; color: var(--muted); }
+  .ibtn { flex: none; width: var(--tap); height: var(--tap); border-radius: 50%; border: 1px solid var(--hair); background: none; display: grid; place-items: center; color: var(--text); transition: transform .18s var(--ease); }
+  .ibtn:active { transform: scale(.94); }
+  .ibtn svg { width: 18px; height: 18px; }
+  .ibtn svg * { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .sumline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 14px; min-height: 36px; }
+  .sumline .small { color: var(--muted); }
+  .btn-sm { min-height: 36px; padding: 0 14px; font-size: 13px; }
+
+  /* agendamento */
+  .ag { position: relative; display: block; padding: 18px 0 16px; border-bottom: 1px solid var(--hair); }
+  .ag.is-flash { overflow: hidden; }
+  .ag-top { display: flex; gap: 16px; align-items: flex-start; }
+  .ag-time { flex: none; width: 58px; }
+  .ag-time .num { font-size: 22px; line-height: 1.1; display: block; }
+  .ag-time .small { color: var(--faint); }
+  .ag-main { flex: 1; min-width: 0; }
+  .ag-name { font-family: var(--serif); font-size: 19px; line-height: 1.2; overflow-wrap: anywhere; }
+  .ag-svc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .ag-price { font-family: var(--serif); font-size: 18px; white-space: nowrap; }
+  .ag-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 0 74px; }
+  .ag-acts .btn-text { margin-left: auto; padding: 0 4px; }
+  .ag-acts .btn-sm { padding: 0 13px; }
+  .ag-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-height: 36px; margin-right: auto; }
+  .ag-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+  .ag.is-faltou .ag-top { opacity: .4; }
+  .ag.is-faltou .ag-status .dot { background: var(--faint); }
+  .ag.is-feito { padding: 13px 0 10px; }
+  .ag.is-feito .ag-time .num, .ag.is-feito .ag-price { color: var(--muted); }
+  .ag.is-feito .ag-acts { margin-top: 4px; }
+  .ag.is-feito .ag-status .dot { background: var(--text); }
+  .ag-new { display: inline-block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--red); margin-left: 8px; vertical-align: 3px; font-family: var(--sans); }
+  @media (max-width: 420px) { .ag-acts { margin-left: 0; } }
+  .ag-time .small { white-space: nowrap; }
+  @media (max-width: 350px) { .ag-time { width: 58px; } .ag-time .num { font-size: 20px; } .ag-time .small { font-size: 11px; } .ag-top { gap: 10px; } }
+
+  /* financeiro */
+  .saldo { margin: 18px 0 4px; }
+  .saldo .num { display: block; font-size: 56px; line-height: 1; letter-spacing: -.02em; margin-top: 8px; }
+  .saldo .num.neg { color: var(--danger); }
+  .grp { margin-top: 28px; }
+  .grp-h { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; }
+  .grp-h .num { font-size: 15px; color: var(--muted); }
+  .lanc { min-height: 54px; padding: 11px 0; }
+  .lanc .row-title { font-size: 16px; font-family: var(--sans); }
+  .lanc .row-end { font-size: 16px; }
+  .lanc.is-saida .row-end { color: var(--muted); }
+  .lanc-h { flex: none; width: 44px; font-size: 13px; color: var(--faint); }
+
+  /* sheet */
+  .seg { margin: 14px 0 22px; }
+  .svc-chips { margin-bottom: 14px; }
+
+  /* ajustes */
+  .sec { padding: 30px 0 6px; border-top: 1px solid var(--hair); }
+  .sec:first-child { border-top: 0; padding-top: 0; }
+  .sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .svc-ed { display: grid; grid-template-columns: minmax(0, 1fr) 84px 72px 36px; gap: 10px; align-items: end; padding: 10px 0; border-bottom: 1px solid var(--hair); }
+  .svc-ed .input, .hr .input { min-height: 42px; font-size: 16px; }
+  .svc-ed label { display: block; min-width: 0; }
+  .svc-ed .field-label { font-size: 10px; margin-bottom: 0; }
+  .svc-ed .ibtn { width: 36px; height: 36px; border: 0; color: var(--muted); }
+  @media (max-width: 350px) { .svc-ed { grid-template-columns: minmax(0, 1fr) 70px 36px; } .svc-ed .lbl-nome { grid-column: 1 / -1; } .svc-ed .lbl-preco { grid-column: 1; } }
+  .hr { display: grid; grid-template-columns: 76px auto minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; min-height: 52px; border-bottom: 1px solid var(--hair); }
+  .hr-d { font-size: 14px; }
+  .hr.is-off .input { opacity: .3; pointer-events: none; }
+  select.input { text-align: center; text-align-last: center; cursor: pointer; background: transparent; }
+  select.input option { background: var(--surface); color: var(--text); }
+  .tg { position: relative; width: 40px; height: 24px; border-radius: 999px; border: 1px solid var(--hair-strong); background: none; padding: 0; }
+  .tg::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform .3s var(--spring), background .2s; }
+  .tg[aria-checked="true"] { border-color: var(--text); }
+  .tg[aria-checked="true"]::after { transform: translateX(16px); background: var(--text); }
+  .stack { display: grid; gap: 10px; margin-top: 16px; }
+  .note { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+
+  /* ================= v3 · movimento (só transform / opacity / clip-path) ================= */
+  @keyframes inUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes logoIn { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: none; } }
+  @keyframes logoOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(1.12); } }
+  @keyframes fadeDown { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px); } }
+  @keyframes lineIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  /* entrada: logo do login sai, topo e conteúdo entram em cascata */
+  .login.is-leaving .logo-wrap { animation: logoOut .42s var(--ease) both; }
+  .login.is-leaving .login-title, .login.is-leaving header .muted, .login.is-leaving .login-foot, .login.is-leaving .login-form { animation: fadeDown .3s var(--ease) both; }
+  #app.is-entering .top .wordmark { animation: logoIn .8s var(--spring) both; }
+  #app.is-entering .top-date { animation: inUp .6s var(--ease) .14s both; }
+  #app.is-entering .top::after { animation: lineIn .9s var(--ease) .1s both; }
+  #app.is-entering .view > .ent { animation: inUp .6s var(--ease) both; animation-delay: calc(220ms + var(--k, 0) * 70ms); }
+  #app.is-entering .list, #app.is-entering #finLista { --b: 420ms; }
+  #app.is-entering .nav { transition-delay: .3s; }
+
+  /* cartões entram em cascata; direção segue o dia anterior/próximo */
+  @keyframes agIn { from { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 12px)); } to { opacity: 1; transform: none; } }
+  .ag-in { animation: agIn .55s var(--ease) both; animation-delay: calc(var(--b, 0ms) + var(--i, 0) * 55ms); }
+  .row-in { animation: inUp .5s var(--ease) both; animation-delay: calc(var(--b, 0ms) + var(--i, 0) * 40ms); }
+
+  /* resumo de hoje */
+  .hoje { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 24px; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+  .hs { padding: 12px 0 11px; min-width: 0; text-align: center; }
+  .hs + .hs { border-left: 1px solid var(--hair); }
+  .hs-n { display: block; font-size: 24px; line-height: 1.1; white-space: nowrap; }
+  .hs-l { display: block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+  @media (max-width: 350px) { .hs-n { font-size: 20px; } .hs-l { font-size: 9px; letter-spacing: .1em; } }
+
+  /* linha do "agora" */
+  .now { position: relative; height: 0; list-style: none; z-index: 2; }
+  .now-l { position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: var(--red); opacity: .75; transform-origin: 0 50%; }
+  .now-t { position: absolute; left: 0; top: -10px; font-size: 11px; line-height: 18px; padding: 0 7px; border-radius: 999px;
+    background: var(--bg); border: 1px solid rgba(200, 50, 58, .55); color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  .now.is-in .now-l { animation: lineIn .8s var(--ease) .25s both; }
+  .now.is-in .now-t { animation: inUp .5s var(--ease) .2s both; }
+
+  /* próximo cliente: ponto pulsando */
+  .ag-prox { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .pulse { position: relative; width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex: none; }
+  .pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--red); animation: pulse 1.9s ease-out infinite; }
+  @keyframes pulse { from { transform: scale(1); opacity: .65; } to { transform: scale(3.4); opacity: 0; } }
+
+  /* atendido: ações saem, check desenhado, cartão recolhe */
+  .ag-ok { width: 18px; height: 18px; margin-top: 3px; color: var(--text); }
+  .ag-ok * { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .ag-ok circle { stroke: var(--hair-strong); }
+  .ag.is-closing .ag-acts { animation: fadeDown .28s var(--ease) both; }
+  .ag.is-closing .ag-time .small { animation: fadeDown .2s var(--ease) both; }
+  .ag-ok.draw { animation: drawOk .5s var(--ease) .12s both; }
+  @keyframes drawOk { from { clip-path: inset(0 100% 0 0); opacity: .3; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+  .ag.just .ag-acts { animation: inUp .4s var(--ease) both; }
+  .ag.is-fading .ag-top { animation: toMuted .35s var(--ease) both; }
+  .ag.is-fading .ag-acts { animation: fadeDown .25s var(--ease) both; }
+  @keyframes toMuted { from { opacity: 1; } to { opacity: .4; } }
+
+  /* chip "+R$" voando até a aba Financeiro */
+  .fly { position: fixed; z-index: 70; left: 0; top: 0; pointer-events: none; padding: 4px 11px; border-radius: 999px;
+    background: var(--text); color: var(--bg); font-family: var(--serif); font-size: 15px; line-height: 1.3; white-space: nowrap; will-change: transform, opacity; }
+  .tab .bump { animation: bump .45s var(--spring); }
+  @keyframes bump { 40% { transform: scale(1.28); } 100% { transform: none; } }
+
+  /* horário novo: varrida de luz no cartão */
+  .ag.is-flash::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg, transparent 25%, rgba(242, 240, 235, .1) 50%, transparent 75%);
+    transform: translateX(-100%); animation: sweep 1.2s var(--ease) .35s both; }
+  @keyframes sweep { to { transform: translateX(100%); } }
+
+  /* aviso de horário novo (desce do topo com mola) */
+  .aviso { position: fixed; z-index: 61; left: 50%; top: calc(var(--safe-t) + 12px); width: min(440px, calc(100% - 2 * var(--pad)));
+    display: flex; gap: 12px; align-items: flex-start; padding: 13px 16px; border-radius: 16px; background: #1B1B1B;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .55); opacity: 0; transform: translate(-50%, calc(-100% - 24px)); pointer-events: none;
+    transition: transform .6s var(--spring), opacity .25s var(--ease); }
+  .aviso.is-on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .aviso .pulse { margin-top: 8px; }
+  .aviso b { display: block; font-family: var(--serif); font-weight: 400; font-size: 17px; line-height: 1.25; }
+  .aviso span.aviso-t { display: block; font-size: 14px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+
+  /* gráfico 7 dias */
+  .chart { margin: 22px 0 4px; }
+  .chart-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  .chart-v { font-size: 15px; color: var(--text); white-space: nowrap; }
+  .bars { display: flex; gap: 6px; align-items: stretch; }
+  .bc { flex: 1; min-width: 0; background: none; border: 0; padding: 0; display: flex; flex-direction: column; align-items: stretch; gap: 7px; color: var(--muted); }
+  .bt { position: relative; height: 92px; }
+  .b { position: absolute; left: 14%; right: 14%; bottom: 0; height: 100%; border-radius: 4px 4px 1px 1px; background: #3A3936;
+    transform-origin: 50% 100%; transform: scaleY(0); transition: transform .75s var(--ease), opacity .2s; }
+  .bc.is-hoje .b { background: var(--text); }
+  .bc.is-sel:not(.is-hoje) .b { background: var(--muted); }
+  .bl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; text-align: center; }
+  .bc.is-hoje .bl, .bc.is-sel .bl { color: var(--text); }
+  .bc:active .b { opacity: .8; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pulse::after { animation: none; opacity: 0; }
+    .ag.is-flash::after { display: none; }
+    .ag-in, .row-in, #app.is-entering .view > .ent { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN =====================
+     Firebase Auth (e-mail/senha). Só a conta com admins/{uid} vê o painel (ver firestore.rules). -->
+<main id="login" class="wrap login is-checking">
+  <header>
+    <span class="logo-wrap rise" style="--i:0">
+      <img class="logo logo-lg" src="img/logo.png" width="680" height="803" alt="Barbearia Juan Cortes">
+    </span>
+    <h1 class="login-title rise" style="--i:1">Painel do barbeiro</h1>
+    <p class="muted rise" style="--i:2;margin:0;max-width:30ch">Agenda do dia, cortes e caixa. Avisa quando chega horário novo.</p>
+  </header>
+  <p class="muted small login-status" id="loginStatus" role="status">Conferindo acesso…</p>
+  <form class="login-form rise" style="--i:3" id="loginForm" method="post" action="#" novalidate>
+    <label class="field" id="f-email">
+      <span class="field-label">E-mail</span>
+      <input class="input" id="email" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="120" required>
+    </label>
+    <label class="field" id="f-senha">
+      <span class="field-label">Senha</span>
+      <input class="input" id="senha" name="senha" type="password" autocomplete="current-password" maxlength="128" required>
+    </label>
+    <p class="login-msg hidden" id="loginMsg" role="alert"></p>
+    <button class="btn btn-primary btn-block" id="entrar" type="submit">Entrar</button>
+    <button class="btn btn-text btn-block" id="esqueci" type="button">Esqueci a senha</button>
+  </form>
+  <div class="login-foot rise" style="--i:4">
+    <a class="btn btn-text btn-block" href="index.html">Voltar ao início</a>
+  </div>
+</main>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="hidden">
+  <main class="wrap">
+    <div class="top">
+      <a class="wordmark" href="index.html" aria-label="Barbearia Juan Cortes, início">
+        <img class="logo logo-sm" src="img/logo-512.png" width="434" height="512" alt="Barbearia Juan Cortes">
+      </a>
+      <div class="top-date" id="topDate"></div>
+    </div>
+
+    <!-- AGENDA -->
+    <section class="view" id="v-agenda" aria-label="Agenda">
+      <div class="hoje ent" style="--k:0" aria-label="Resumo de hoje">
+        <div class="hs"><span class="hs-n num" id="hsH">0</span><span class="hs-l">Horários</span></div>
+        <div class="hs"><span class="hs-n num" id="hsP">R$ 0</span><span class="hs-l">Previsto</span></div>
+        <div class="hs"><span class="hs-n num" id="hsA">0</span><span class="hs-l">Atendidos</span></div>
+      </div>
+      <div class="dayswitch ent" style="--k:1">
+        <button class="ibtn" id="diaAnt" type="button" aria-label="Dia anterior"><svg viewBox="0 0 18 18"><path d="M11 3.5L5.5 9l5.5 5.5"/></svg></button>
+        <div class="dayswitch-mid"><div class="dayswitch-t" id="diaT"></div><div class="dayswitch-s" id="diaS"></div></div>
+        <button class="ibtn" id="diaProx" type="button" aria-label="Próximo dia"><svg viewBox="0 0 18 18"><path d="M7 3.5L12.5 9 7 14.5"/></svg></button>
+      </div>
+      <div class="sumline ent" style="--k:2">
+        <span class="small" id="agSum"></span>
+        <button class="btn btn-ghost btn-sm" id="irHoje" type="button">Hoje</button>
+      </div>
+      <ul class="list" id="agLista"></ul>
+    </section>
+
+    <!-- FINANCEIRO -->
+    <section class="view" id="v-fin" aria-label="Financeiro" hidden>
+      <div class="chips ent" style="--k:0" id="periodos" role="radiogroup" aria-label="Período">
+        <button class="chip is-on" data-p="hoje" type="button" role="radio" aria-checked="true">Hoje</button>
+        <button class="chip" data-p="7" type="button" role="radio" aria-checked="false">7 dias</button>
+        <button class="chip" data-p="mes" type="button" role="radio" aria-checked="false">Mês</button>
+      </div>
+      <div class="saldo ent" style="--k:1"><span class="eyebrow" id="saldoLbl">Saldo de hoje</span><span class="num" id="saldo">R$ 0</span></div>
+      <div class="chart ent" style="--k:2">
+        <div class="chart-h"><span class="eyebrow">Faturado · 7 dias</span><span class="chart-v num" id="chartV" aria-live="polite"></span></div>
+        <div class="bars" id="bars" role="group" aria-label="Faturado por dia, últimos 7 dias"></div>
+      </div>
+      <div class="kv ent" style="--k:3" id="finKv"></div>
+      <div class="stack ent" style="--k:4"><button class="btn btn-outline btn-block" id="abrirAdd" type="button">
+        <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3v12M3 9h12"/></svg>Adicionar</button></div>
+      <div id="finLista"></div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="view" id="v-aj" aria-label="Ajustes" hidden>
+      <div class="sec">
+        <div class="sec-h"><h2>Serviços</h2><span class="small muted">o cliente vê isto</span></div>
+        <div id="svcEd"></div>
+        <div class="stack">
+          <button class="btn btn-ghost btn-block" id="svcAdd" type="button">Adicionar serviço</button>
+          <button class="btn btn-primary btn-block" id="svcSalvar" type="button">Salvar serviços</button>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><h2>Horário</h2><span class="small muted">abre · fecha</span></div>
+        <div id="hrEd"></div>
+        <div class="hr" id="hrAlmoco"></div>
+        <div class="stack"><button class="btn btn-primary btn-block" id="hrSalvar" type="button">Salvar horário</button></div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><h2>Avisos</h2></div>
+        <p class="note" id="notifSt" style="margin:0 0 4px"></p>
+        <div class="stack">
+          <button class="btn btn-outline btn-block" id="notifBtn" type="button">Ativar notificações</button>
+          <button class="btn btn-ghost btn-block" id="testeBtn" type="button">Testar aviso</button>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="stack">
+          <button class="btn btn-text btn-block" id="sair" type="button">Sair</button>
+        </div>
+        <p class="foot">Barbearia Juan Cortes · R. Amazonas de Baixo, 8 · Cabula, Salvador — BA</p>
+      </div>
+    </section>
+
+    <div class="bar-spacer"></div>
+  </main>
+
+  <nav class="bar nav glass" id="nav" aria-label="Seções">
+    <div class="tabs" role="tablist">
+      <button class="tab is-on" data-v="agenda" type="button" role="tab" aria-selected="true">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14M7 2.5v3M13 2.5v3"/></svg>Agenda</button>
+      <button class="tab" data-v="fin" type="button" role="tab" aria-selected="false">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 16.5h14M5.5 13.5v-4M10 13.5V5M14.5 13.5v-6"/></svg>Financeiro</button>
+      <button class="tab" data-v="aj" type="button" role="tab" aria-selected="false">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h9M15 6h2M3 14h2M8 14h9"/><circle cx="13.5" cy="6" r="1.8"/><circle cx="6.5" cy="14" r="1.8"/></svg>Ajustes</button>
+      <span class="tab-ind" aria-hidden="true"></span>
+    </div>
+  </nav>
+</div>
+
+<!-- sheet: adicionar lançamento -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet glass" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetT">
+  <div class="sheet-grab"></div>
+  <h2 id="sheetT">Adicionar</h2>
+  <div class="tabs seg" id="seg" role="tablist">
+    <button class="tab is-on" data-m="saida" type="button" role="tab" aria-selected="true">Saída</button>
+    <button class="tab" data-m="corte" type="button" role="tab" aria-selected="false">Corte avulso</button>
+    <span class="tab-ind" aria-hidden="true"></span>
+  </div>
+  <div id="mSaida">
+    <label class="field"><span class="field-label">Descrição</span><input class="input" id="sDesc" placeholder="Ex.: lâminas, conta de luz" autocomplete="off" maxlength="120"></label>
+    <label class="field"><span class="field-label">Valor</span><input class="input" id="sVal" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off" maxlength="12"></label>
+  </div>
+  <div id="mCorte" class="hidden">
+    <span class="field-label">Serviço</span>
+    <div class="chips svc-chips" id="cSvc"></div>
+    <label class="field"><span class="field-label">Valor</span><input class="input" id="cVal" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off" maxlength="12"></label>
+  </div>
+  <p class="note hidden" id="addMsg" style="color:var(--danger)"></p>
+  <div class="sheet-actions">
+    <button class="btn btn-primary btn-block" id="addSalvar" type="button">Lançar saída</button>
+    <button class="btn btn-text btn-block" id="addCancelar" type="button">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast glass" id="toast" role="status" aria-live="polite"></div>
+<div class="aviso glass" id="aviso" role="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span><div><b>Novo horário</b><span class="aviso-t" id="avisoTxt"></span></div></div>
+
+<script src="db-firebase.js"></script>
+<script src="painel.js"></script>
+</body>
+</html>
