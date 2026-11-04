@@ -92,5 +92,48 @@
     }
   } catch (e) { html.classList.remove('intro'); }
 
-  w.JC = { configOk: configOk, esc: esc, msgErro: msgErro, semRede: semRede, pendente: pendente, emulador: usarEmu };
+  /* ---------- profundidade 3D nas opções tocáveis ----------
+     Inclina de leve na direção do dedo/mouse (variáveis --rx/--ry usadas no transform do CSS),
+     levanta ao passar o mouse (.is-hover) e "afunda" ao tocar (.is-press). Só transform/opacity.
+     Desligado com prefers-reduced-motion. Um único ouvinte delegado no documento. */
+  var SEL3D = '.opt, .t3d, .ag, .ibtn, .chip, .bc, .tg';
+  var MAX = 5;   // graus
+  var reduz = !!(w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function alvo3d(t) {
+    var el = t && t.closest ? t.closest(SEL3D) : null;
+    if (!el || el.disabled) return null;
+    // tocou num botão/campo DENTRO de um cartão: o cartão não inclina (o botão tem o próprio :active)
+    var ctl = t.closest('button, a, input, select, textarea, label');
+    if (ctl && ctl !== el && el.contains(ctl)) return null;
+    return el;
+  }
+  function inclinar(el, x, y) {
+    var r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+    var px = Math.max(-1, Math.min(1, ((x - r.left) / r.width) * 2 - 1));
+    var py = Math.max(-1, Math.min(1, ((y - r.top) / r.height) * 2 - 1));
+    var k = r.width > 220 ? .45 : 1;   // cartões largos inclinam menos
+    el.style.setProperty('--ry', (px * MAX * k).toFixed(2) + 'deg');
+    el.style.setProperty('--rx', (-py * MAX * k).toFixed(2) + 'deg');
+  }
+  function soltar(el) { if (!el) return; el.classList.remove('is-press', 'is-hover'); el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); }
+  var preso = null, sobre = null;
+  if (!reduz) {
+    d.addEventListener('pointerdown', function (e) {
+      var el = alvo3d(e.target); if (!el) return;
+      preso = el; el.classList.add('is-press'); inclinar(el, e.clientX, e.clientY);
+    }, { passive: true });
+    var fim = function () { if (preso) { var el = preso; preso = null; el.classList.remove('is-press'); if (el !== sobre) soltar(el); } };
+    d.addEventListener('pointerup', fim, { passive: true });
+    d.addEventListener('pointercancel', fim, { passive: true });
+    d.addEventListener('pointermove', function (e) {
+      if (e.pointerType !== 'mouse') return;
+      var el = alvo3d(e.target);
+      if (el !== sobre) { if (sobre && sobre !== preso) soltar(sobre); sobre = el; if (el) el.classList.add('is-hover'); }
+      if (el) inclinar(el, e.clientX, e.clientY);
+    }, { passive: true });
+    d.addEventListener('pointerleave', function () { if (sobre) soltar(sobre); sobre = null; }, { passive: true });
+    w.addEventListener('scroll', function () { if (preso) { soltar(preso); preso = null; } }, { passive: true });
+  }
+
+  w.JC = { configOk: configOk, esc: esc, msgErro: msgErro, semRede: semRede, pendente: pendente, emulador: usarEmu, reduz: reduz };
 })(window);

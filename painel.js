@@ -101,9 +101,29 @@
     st.entrada = true; iniciarVistos(); renderTudo(true);
   }
   // só chamado quando o Firebase confirmou: logado E barbeiro
+  // 1ª configuração: banco sem serviços e/ou sem config/loja -> cria o padrão (nunca sobrescreve)
+  var cfgInicialFeita = false, cfgInicialRodando = false;
+  function primeiraConfig(tentativa) {
+    if (cfgInicialFeita || cfgInicialRodando || !st.autorizado) return;
+    cfgInicialRodando = true;
+    DB.primeiraConfiguracao().then(function (r) {
+      cfgInicialRodando = false; cfgInicialFeita = true;
+      if (!st.autorizado || !(r.servicos || r.config)) return;
+      var o = [];
+      if (r.servicos) o.push(r.servicos + ' serviços');
+      if (r.config) o.push('horário de funcionamento');
+      toast('Primeira configuração pronta: ' + o.join(' e ') + '. Ajuste em Ajustes.');
+      if (st.view === 'aj') renderAjustes(); else renderTudo();
+    }, function (err) {
+      cfgInicialRodando = false;
+      console.warn('[painel] primeira configuração:', err && (err.code || err.message));
+      if ((tentativa || 0) < 3) setTimeout(function () { primeiraConfig((tentativa || 0) + 1); }, 4000);
+    });
+  }
   function liberar() {
     if (st.autorizado) return;
     st.autorizado = true;
+    primeiraConfig(0);
     prepararAudio();
     var l = $('login');
     if (reduz() || l.classList.contains('hidden') || l.classList.contains('is-checking')) return mostrarApp();

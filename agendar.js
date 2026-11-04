@@ -56,7 +56,7 @@
     });
     var soltou = false;
     function soltarResto() { if (!soltou) { soltou = true; html.classList.remove('intro'); } }
-    var tSolta = setTimeout(soltarResto, 1150);   // passos 01–04 começam a subir
+    var tSolta = setTimeout(soltarResto, 1150);   // etapas começam a subir
     var acabou = false;
     function fim() {
       if (acabou) return; acabou = true;
@@ -82,7 +82,11 @@
     'freestyle (desenho)': { img: 'svc-freestyle.jpg', cap: 'Risco à mão livre, do jeito que você pedir' },
     'pezinho': { img: 'svc-pezinho.jpg', cap: 'Nuca e laterais alinhadas entre um corte e outro' }
   };
+  // ID do serviço (servicos/{id}, o mesmo do seed e da 1ª configuração) -> ilustração
+  var FOTO_ID = { 'corte': 'corte masculino', 'corte-masculino': 'corte masculino', 'corte-feminino': 'corte feminino', 'barba': 'barba',
+    'corte-barba': 'corte + barba', 'sobrancelha': 'sobrancelha', 'freestyle': 'freestyle (desenho)', 'pezinho': 'pezinho' };
   function foto(s) {
+    if (FOTO_ID[s.id]) return FOTOS[FOTO_ID[s.id]];
     var k = String(s.nome || '').toLowerCase().trim();
     if (FOTOS[k]) return FOTOS[k];
     for (var n in FOTOS) if (k.indexOf(n.split(' ')[0]) === 0) return FOTOS[n];
@@ -118,7 +122,7 @@
   }
   function pop(el) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
 
-  /* ---------- 01 serviços ---------- */
+  /* ---------- serviços ---------- */
   var revelados = false;
   function fotoHTML(s, anim) {
     var f = foto(s); if (!f) return '';
@@ -134,7 +138,7 @@
       var on = st.servico && st.servico.id === s.id, f = foto(s);
       var th = f ? '<span class="thumb" aria-hidden="true"><img class="t-g" src="img/t/' + f.img + '" alt="" width="52" height="52"' + (i ? ' loading="lazy"' : '') + '>' +
         '<img class="t-c" src="img/t/' + f.img + '" alt="" width="52" height="52"' + (i ? ' loading="lazy"' : '') + '></span>' : '';
-      return '<li class="reveal' + (revelados ? ' is-in' : '') + '" style="--i:' + i + '"><button type="button" class="row svc' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + !!on + '" data-id="' + esc(s.id) + '">' +
+      return '<li class="reveal' + (revelados ? ' is-in' : '') + '" style="--i:' + i + '"><button type="button" class="row svc opt' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + !!on + '" data-id="' + esc(s.id) + '">' +
         th +
         '<span class="row-main"><span class="row-title">' + esc(s.nome) + '</span><span class="row-sub" style="display:block">' + esc(dur(s.duracao)) + '</span></span>' +
         '<span class="row-end">' + esc(U.brlCurto(s.preco)) + '<span class="row-mark" aria-hidden="true"></span></span></button>' +
@@ -196,37 +200,120 @@
   }
   renderFaixa();
 
-  /* ---------- 02 dias ---------- */
+  /* ---------- dias (rápidos + calendário do mês) ---------- */
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  var JANELA = 60;   // mesmo limite das regras: de hoje até +60 dias
+  function diaMax() { return U.addDias(U.hoje(), JANELA); }
+  function rotuloAcess(iso) { var d = U.parseISO(iso); return U.DIAS[d.getDay()] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()]; }
+  function diaDisponivel(iso) { return iso >= U.hoje() && iso <= diaMax() && !U.diaFechado(iso, st.cfg); }
+  var RAPIDOS = 14;
   function renderDias() {
     var h = U.hoje(), out = '', meses = {};
-    for (var i = 0; i < 14; i++) {
+    for (var i = 0; i < RAPIDOS; i++) {
       var iso = U.addDias(h, i), d = U.parseISO(iso);
       var fechado = U.diaFechado(iso, st.cfg);
       var on = st.data === iso;
       meses[U.MESES3[d.getMonth()]] = 1;
       var rot = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : U.DIAS3[d.getDay()];
-      out += '<button type="button" class="chip day' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + on + '" data-d="' + iso + '"' +
-        (fechado ? ' disabled aria-label="' + U.DIAS[d.getDay()] + ' ' + d.getDate() + ', fechado"' : ' aria-label="' + esc(diaLongo(iso)) + '"') + '>' +
+      out += '<button type="button" class="chip day opt' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + on + '" data-d="' + iso + '"' +
+        (fechado ? ' disabled aria-label="' + esc(rotuloAcess(iso)) + ', fechado"' : ' aria-label="' + esc(rotuloAcess(iso)) + '"') + '>' +
         '<span class="day-dow">' + rot + '</span><span class="day-n">' + d.getDate() + '</span><span class="day-m">' + (fechado ? 'fechado' : U.MESES3[d.getMonth()]) + '</span></button>';
     }
     $('dias').innerHTML = out;
     $('mes').textContent = Object.keys(meses).join(' / ');
+    $('calAbrir').classList.remove('hidden');
+    // dia escolhido no calendário fora dos dias rápidos: o botão mostra a data, destacado
+    var fora = st.data && st.data >= U.addDias(h, RAPIDOS);
+    $('calAbrir').classList.toggle('is-on', !!fora);
+    $('calAbrirT').textContent = fora ? cap(rotuloAcess(st.data)) + ' · trocar' : 'Ver calendário';
   }
-  $('dias').addEventListener('click', function (e) {
-    var b = e.target.closest('.day'); if (!b || b.disabled || st.feito) return;
-    var mudou = st.data !== b.dataset.d;
-    st.data = b.dataset.d;
+  function escolherDia(iso) {
+    if (st.feito || !diaDisponivel(iso)) return;
+    var mudou = st.data !== iso;
+    st.data = iso;
     if (mudou) { st.inicio = null; msgHorario(''); }
-    $('dias').querySelectorAll('.day').forEach(function (x) {
-      var on = x === b; x.classList.toggle('is-on', on); x.setAttribute('aria-checked', on);
-    });
-    pop(b);
+    renderDias();
+    var b = $('dias').querySelector('.day[data-d="' + iso + '"]');
+    if (b) pop(b); else pop($('calAbrir'));
     $('s3').classList.remove('is-locked');
     carregarHorarios().then(function () { setTimeout(function () { rolarPara('s3'); }, 120); });
     atualizarBarra();
+  }
+  $('dias').addEventListener('click', function (e) {
+    var b = e.target.closest('.day'); if (!b || b.disabled) return;
+    escolherDia(b.dataset.d);
   });
 
-  /* ---------- 03 horários ---------- */
+  /* calendário do mês: abre de baixo; domingos/folgas fechados, passado e além de 60 dias desabilitados */
+  var cal = { ano: 0, mes: 0, aberto: false, foco: null };
+  function mesIdx(a, m) { return a * 12 + m; }
+  function limitesMes() {
+    var h = U.parseISO(U.hoje()), mx = U.parseISO(diaMax());
+    return { min: mesIdx(h.getFullYear(), h.getMonth()), max: mesIdx(mx.getFullYear(), mx.getMonth()) };
+  }
+  function renderCal(dir) {
+    var lim = limitesMes(), at = mesIdx(cal.ano, cal.mes);
+    $('calT').textContent = cap(MESES[cal.mes]) + ' de ' + cal.ano;
+    $('calAnt').disabled = at <= lim.min; $('calProx').disabled = at >= lim.max;
+    var primeiro = new Date(cal.ano, cal.mes, 1), dias = new Date(cal.ano, cal.mes + 1, 0).getDate(), h = U.hoje();
+    var out = '';
+    for (var v = 0; v < primeiro.getDay(); v++) out += '<span class="cal-v" aria-hidden="true"></span>';
+    for (var n = 1; n <= dias; n++) {
+      var iso = U.iso(new Date(cal.ano, cal.mes, n));
+      var pode = diaDisponivel(iso), on = st.data === iso, hoje = iso === h;
+      var lbl = rotuloAcess(iso) + (hoje ? ', hoje' : '') + (on ? ', escolhido' : '') +
+        (pode ? '' : (iso < h || iso > diaMax()) ? ', indisponível' : ', fechado');
+      out += '<button type="button" class="cal-d opt' + (on ? ' is-on' : '') + (hoje ? ' is-hoje' : '') + '" data-d="' + iso + '"' +
+        ' aria-label="' + esc(lbl) + '"' + (on ? ' aria-pressed="true"' : '') + (pode ? '' : ' disabled') +
+        ' style="--i:' + n + '"><span class="cal-n">' + n + '</span></button>';
+    }
+    var g = $('calGrade');
+    g.innerHTML = out;
+    g.classList.remove('is-de-tras', 'is-da-frente', 'is-abrindo');
+    if (!reduz) { void g.offsetWidth; g.classList.add(dir < 0 ? 'is-de-tras' : dir > 0 ? 'is-da-frente' : 'is-abrindo'); }
+  }
+  function abrirCal() {
+    if (st.feito) return;
+    var base = U.parseISO(st.data || U.hoje());
+    cal.ano = base.getFullYear(); cal.mes = base.getMonth(); cal.aberto = true;
+    cal.foco = document.activeElement;
+    renderCal(0);
+    $('calScrim').classList.add('is-on'); $('cal').classList.add('is-on'); $('cal').setAttribute('aria-hidden', 'false');
+    $('calAbrir').setAttribute('aria-expanded', 'true');
+    setTimeout(function () {
+      var alvo = $('calGrade').querySelector('.cal-d.is-on') || $('calGrade').querySelector('.cal-d:not([disabled])') || $('calFechar');
+      alvo.focus({ preventScroll: true });
+    }, reduz ? 0 : 320);
+  }
+  function fecharCal() {
+    if (!cal.aberto) return;
+    cal.aberto = false;
+    $('calScrim').classList.remove('is-on'); $('cal').classList.remove('is-on'); $('cal').setAttribute('aria-hidden', 'true');
+    $('calAbrir').setAttribute('aria-expanded', 'false');
+    if (cal.foco && cal.foco.focus) cal.foco.focus({ preventScroll: true });
+  }
+  function mudarMes(d) {
+    var lim = limitesMes(), alvo = mesIdx(cal.ano, cal.mes) + d;
+    if (alvo < lim.min || alvo > lim.max) return;
+    cal.ano = Math.floor(alvo / 12); cal.mes = alvo % 12;
+    renderCal(d);
+  }
+  $('calAbrir').addEventListener('click', abrirCal);
+  $('calFechar').addEventListener('click', fecharCal);
+  $('calScrim').addEventListener('click', fecharCal);
+  $('calAnt').addEventListener('click', function () { mudarMes(-1); });
+  $('calProx').addEventListener('click', function () { mudarMes(1); });
+  $('calGrade').addEventListener('click', function (e) {
+    var b = e.target.closest('.cal-d'); if (!b || b.disabled) return;
+    var iso = b.dataset.d;
+    $('calGrade').querySelectorAll('.cal-d.is-on').forEach(function (x) { x.classList.remove('is-on'); x.removeAttribute('aria-pressed'); });
+    b.classList.add('is-on'); b.setAttribute('aria-pressed', 'true');
+    // deixa ver o dia marcado por um instante e fecha mostrando os horários
+    setTimeout(function () { fecharCal(); escolherDia(iso); }, reduz ? 0 : 220);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && cal.aberto) { e.stopImmediatePropagation(); fecharCal(); } }, true);
+
+  /* ---------- horários ---------- */
   function carregarHorarios() {
     if (st.feito || !st.servico || !st.data) return Promise.resolve();
     var data = st.data, servico = st.servico;
@@ -248,6 +335,7 @@
         '<button type="button" class="btn btn-ghost btn-block" data-recarregar-h style="margin-top:14px">Tentar de novo</button></div>';
     });
   }
+  var ultimaGrade = '';
   function renderHorarios() {
     var box = $('horarios');
     if (!st.livres.length) {
@@ -256,9 +344,13 @@
       return;
     }
     $('nlivres').textContent = st.livres.length + (st.livres.length === 1 ? ' livre' : ' livres');
-    box.innerHTML = '<div class="slots" role="radiogroup" aria-labelledby="t3">' + st.livres.map(function (t) {
+    // entra com leve tilt só quando muda o dia/serviço (atualização ao vivo não anima de novo)
+    var chave = st.data + '|' + (st.servico && st.servico.id), anim = !reduz && chave !== ultimaGrade;
+    ultimaGrade = chave;
+    box.innerHTML = '<div class="slots" role="radiogroup" aria-labelledby="t3">' + st.livres.map(function (t, i) {
       var on = st.inicio === t;
-      return '<button type="button" class="slot' + (on ? ' is-on' : '') + '" role="radio" aria-checked="' + on + '" data-t="' + Number(t) + '">' + U.hhmm(t) + '</button>';
+      return '<button type="button" class="slot opt' + (on ? ' is-on' : '') + (anim ? ' tilt-in' : '') + '" role="radio" aria-checked="' + on + '" data-t="' + Number(t) + '"' +
+        (anim ? ' style="--i:' + Math.min(i, 16) + '"' : '') + '>' + U.hhmm(t) + '</button>';
     }).join('') + '</div>';
   }
   $('horarios').addEventListener('click', function (e) {
@@ -276,7 +368,7 @@
     if (primeira) setTimeout(function () { rolarPara('s4'); }, 140);
   });
 
-  /* ---------- 04 dados (mesmas regras do servidor) ---------- */
+  /* ---------- seus dados (mesmas regras do servidor) ---------- */
   // nome: 2–60 caracteres depois de tirar espaços repetidos
   function nomeLimpo() { return $('nome').value.trim().replace(/\s+/g, ' '); }
   function nomeOk() { var n = nomeLimpo(); return n.length >= 2 && n.length <= 60; }
@@ -463,6 +555,10 @@
     $('sucesso').classList.add('hidden'); $('sucesso').innerHTML = '';
     $('fluxo').classList.remove('hidden');
     window.scrollTo(0, 0);
+    // enquanto a tela de sucesso estava aberta o barbeiro pode ter mudado horário/serviços: relê
+    Promise.all([DB.config(), DB.servicos()]).then(function (x) {
+      aplicarCatalogo(x[1].filter(function (s) { return s.ativo !== false; }), x[0]);
+    }).catch(function () {});
   }
 
   /* ---------- início ---------- */
@@ -470,8 +566,29 @@
     if (err && err.code === 'sem-config') { JC.pendente(false); return; }
     console.warn('[agendar] carregar:', err && (err.code || err.message));
     $('servicos').innerHTML = '<li><div class="empty"><strong>Não foi possível carregar os serviços.</strong>' +
-      esc(err ? JC.msgErro(err) : 'Confira a internet e tente de novo.') +
+      esc(JC.msgErro(err)) +
       '<button type="button" class="btn btn-ghost btn-block" data-recarregar style="margin-top:14px">Tentar de novo</button></div></li>';
+  }
+  // leitura funcionou, mas o barbeiro ainda não configurou serviços/horário: mensagem calma (a página atualiza sozinha)
+  function emBreve() {
+    $('servicos').innerHTML = '<li><div class="empty em-breve" id="emBreve"><strong>A agenda online abre em breve.</strong>' +
+      'Enquanto isso, chame o Juan no WhatsApp para marcar.' +
+      '<a class="btn btn-ghost btn-block" style="margin-top:14px" href="https://wa.me/' + ZAP + '" target="_blank" rel="noopener noreferrer">Falar no WhatsApp</a></div></li>';
+    $('s2').classList.add('is-locked'); $('dias').innerHTML = ''; $('mes').textContent = ''; $('calAbrir').classList.add('hidden');
+  }
+  function pronto() { return st.servicos.length > 0 && st.cfg && st.cfg.existe !== false; }
+  function aplicarCatalogo(lista, cfg) {
+    var antes = pronto();
+    st.cfg = cfg;
+    if (JSON.stringify(lista) !== JSON.stringify(st.servicos)) {   // catálogo mudou no painel
+      st.servicos = lista;
+      if (st.servico) st.servico = lista.filter(function (s) { return s.id === st.servico.id; })[0] || null;
+      if (pronto()) { renderServicos(); atualizarBarra(); }
+    }
+    if (!pronto()) { emBreve(); return; }
+    if (!antes) { revelados = false; renderServicos(); }
+    renderDias();
+    if (st.data && st.servico) carregarHorarios();
   }
   var ligado = false;
   function iniciar() {
@@ -479,26 +596,19 @@
     DB.iniciar().then(function () {
       return Promise.all([DB.servicos(), DB.config()]);
     }).then(function (r) {
+      if (!ligado) {
+        ligado = true;
+        DB.aoMudar(function () {
+          if (st.feito) return;
+          Promise.all([DB.config(), DB.servicos()]).then(function (x) {
+            aplicarCatalogo(x[1].filter(function (s) { return s.ativo !== false; }), x[0]);
+          }).catch(function () {});
+        });
+      }
       st.servicos = r[0].filter(function (s) { return s.ativo !== false; });
       st.cfg = r[1];
-      if (!st.servicos.length) { erroCarga(null); return; }
+      if (!pronto()) { emBreve(); return; }
       renderServicos(); renderDias();
-      if (ligado) return;
-      ligado = true;
-      DB.aoMudar(function () {
-        if (st.feito) return;
-        Promise.all([DB.config(), DB.servicos()]).then(function (x) {
-          st.cfg = x[0];
-          var lista = x[1].filter(function (s) { return s.ativo !== false; });
-          if (JSON.stringify(lista) !== JSON.stringify(st.servicos)) {   // catálogo mudou no painel
-            st.servicos = lista;
-            if (st.servico) st.servico = lista.filter(function (s) { return s.id === st.servico.id; })[0] || null;
-            renderServicos(); atualizarBarra();
-          }
-          renderDias();
-          if (st.data && st.servico) carregarHorarios();
-        }).catch(function () {});
-      });
     }).catch(erroCarga);
   }
   iniciar();

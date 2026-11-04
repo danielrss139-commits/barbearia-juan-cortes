@@ -31,8 +31,12 @@ Testes e ferramentas: `../juan-prod-tests/`.
    → campo `nome` (string) = `Daniel` → Salvar.
    Para o Juan depois: crie a conta dele em Authentication → Usuários, copie o UID e crie **outro** documento
    `admins/{UID_DO_JUAN}` do mesmo jeito. Pode haver vários; cada um com seu login.
-5. **Serviços e horário**: pelo painel (Ajustes → Salvar serviços / Salvar horário) depois de entrar,
-   ou com o seed (abaixo). Sem serviços, a página do cliente mostra "Não foi possível carregar os serviços".
+5. **Serviços e horário: automático.** Na primeira vez que um barbeiro (com `admins/{uid}`) entra no painel e o banco
+   não tem nenhum serviço e/ou não tem `config/loja`, o painel cria sozinho o padrão: Corte masculino R$25 40min,
+   Corte feminino R$35 50min, Barba R$15 20min, Corte + Barba R$35 60min, Sobrancelha, Freestyle e Pezinho R$10 15min;
+   seg–sáb 09:00–19:45, domingo fechado, almoço 12–13h, horários de 15 em 15 min. Só cria o que falta, nunca sobrescreve
+   (se já houver algum serviço, não recria nenhum). Depois é só ajustar em **Ajustes** (inclusive abrir o domingo).
+   Enquanto o banco estiver vazio, a página do cliente mostra "A agenda online abre em breve." e se atualiza sozinha.
 6. **Authentication → Configurações → Domínios autorizados**: adicionar o domínio do site
    (ex.: `seuusuario.github.io`) para o login e o "Esqueci a senha" funcionarem lá.
 7. **Recomendado:** App Check (ver "Segurança").
@@ -69,7 +73,7 @@ Testado com 10 navegadores no mesmo horário ao mesmo tempo: 1 confirma, 9 receb
 - Validação no navegador igual às regras: nome 2–60 caracteres; telefone só dígitos, DDD + 8/9 dígitos
   (aceita colar "+55 …"); botão de confirmar trava contra toque duplo.
 - Sem internet / conexão lenta: mensagens claras e "Tentar de novo"; o painel não desloga por falta de rede.
-- Service worker guarda **só** os arquivos do site (lista fixa); nunca intercepta Firestore, Auth ou o SDK. Cache `jc-shell-v4`.
+- Service worker guarda **só** os arquivos do site (lista fixa); nunca intercepta Firestore, Auth ou o SDK. Cache `jc-shell-v6`.
 - **App Check (recomendado)**: Console → App Check → registrar o app web com reCAPTCHA v3 → colar a chave do site em
   `FIREBASE_APP_CHECK` (`ativo: true`) → **acrescentar ao CSP** de cada página:
   `script-src … https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/` e `frame-src https://www.google.com/recaptcha/`

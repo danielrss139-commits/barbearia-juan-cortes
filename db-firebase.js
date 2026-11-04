@@ -89,11 +89,22 @@
     return !cfg.horarios[parseISO(data).getDay()] || (cfg.folgas || []).indexOf(data) >= 0;
   }
 
-  // valores iniciais (o seed grava estes; o Juan ajusta no painel)
+  // valores iniciais (a 1ª configuração automática do painel e o seed gravam estes; o Juan ajusta no painel)
+  // seg–sáb 09:00–19:45, domingo fechado, almoço 12h–13h, horários de 15 em 15 min
   var CONFIG_PADRAO = {
     horarios: { 0: null, 1: [540, 1185], 2: [540, 1185], 3: [540, 1185], 4: [540, 1185], 5: [540, 1185], 6: [540, 1185] },
-    almoco: [720, 780], folgas: [], intervalo: 30
+    almoco: [720, 780], folgas: [], intervalo: 15
   };
+  // mesmos IDs do seed.js (a página do cliente liga cada serviço à ilustração pelo ID)
+  var SERVICOS_PADRAO = [
+    { id: 'corte', nome: 'Corte masculino', preco: 25, duracao: 40, ordem: 1, ativo: true },
+    { id: 'corte-feminino', nome: 'Corte feminino', preco: 35, duracao: 50, ordem: 2, ativo: true },
+    { id: 'barba', nome: 'Barba', preco: 15, duracao: 20, ordem: 3, ativo: true },
+    { id: 'corte-barba', nome: 'Corte + Barba', preco: 35, duracao: 60, ordem: 4, ativo: true },
+    { id: 'sobrancelha', nome: 'Sobrancelha', preco: 10, duracao: 15, ordem: 5, ativo: true },
+    { id: 'freestyle', nome: 'Freestyle', preco: 10, duracao: 15, ordem: 6, ativo: true },
+    { id: 'pezinho', nome: 'Pezinho', preco: 10, duracao: 15, ordem: 7, ativo: true }
+  ];
 
   function erro(code, msg, causa) { var e = new Error(msg); e.code = code; if (causa) e.causa = causa; return e; }
   function erroOcupado() { return erro('ocupado', 'Esse horário acabou de ser ocupado.'); }
@@ -145,7 +156,7 @@
       if (!d) return JSON.parse(JSON.stringify(CONFIG_PADRAO));
       var h = {}; for (var i = 0; i < 7; i++) { var f = d.horarios && d.horarios[String(i)]; h[i] = f && f.length === 2 ? [f[0], f[1]] : null; }
       return { horarios: h, almoco: d.almoco && d.almoco.length === 2 ? [d.almoco[0], d.almoco[1]] : null,
-        folgas: (d.folgas || []).slice(), intervalo: d.intervalo || 30 };
+        folgas: (d.folgas || []).slice(), intervalo: d.intervalo || 15 };
     }
     function paraCfg(cfg) {
       var h = {}; for (var i = 0; i < 7; i++) { var f = cfg.horarios[i] || cfg.horarios[String(i)]; h[String(i)] = f ? [Number(f[0]), Number(f[1])] : null; }
@@ -268,10 +279,42 @@
       /* ---------- config/loja ---------- */
       config: function () {
         return ctx().then(function (c) { return c.F.getDoc(c.F.doc(c.db, 'config', 'loja')); })
-          .then(function (s) { return normCfg(s.exists() ? s.data() : null); });
+          .then(function (s) {
+            // existe:false = config/loja ainda não foi criada (a página do cliente mostra "abre em breve")
+            var cfg = normCfg(s.exists() ? s.data() : null); cfg.existe = s.exists(); return cfg;
+          });
       },
       salvarConfig: function (cfg) {
         return ctx().then(function (c) { return c.F.setDoc(c.F.doc(c.db, 'config', 'loja'), paraCfg(cfg)); });
+      },
+
+      /* ---------- 1ª configuração (só barbeiro): cria o padrão SÓ onde está vazio ----------
+         - servicos: só se a coleção não tem NENHUM documento (se o Juan apagou alguns, não recria);
+         - config/loja: só se o documento não existe.
+         Tudo numa transação que relê os docs: se outro aparelho criou antes, nada é sobrescrito.
+         Resolve { servicos: n criados, config: true/false }. */
+      primeiraConfiguracao: function () {
+        return ctx().then(function (c) {
+          if (!c.auth || !c.auth.currentUser) return { servicos: 0, config: false };
+          var cfgRef = c.F.doc(c.db, 'config', 'loja');
+          return Promise.all([c.F.getDocs(c.F.query(c.F.collection(c.db, 'servicos'), c.F.limit(1))), c.F.getDoc(cfgRef)]).then(function (r) {
+            var faltaSvc = r[0].empty, faltaCfg = !r[1].exists();
+            if (!faltaSvc && !faltaCfg) return { servicos: 0, config: false };
+            return c.F.runTransaction(c.db, function (tx) {
+              var refs = faltaSvc ? SERVICOS_PADRAO.map(function (s) { return c.F.doc(c.db, 'servicos', s.id); }) : [];
+              return Promise.all(refs.concat(faltaCfg ? [cfgRef] : []).map(function (x) { return tx.get(x); })).then(function (ss) {
+                var n = 0, cfgCriada = false;
+                refs.forEach(function (ref, i) {
+                  if (ss[i].exists()) return;
+                  var s = SERVICOS_PADRAO[i];
+                  tx.set(ref, { nome: s.nome, preco: s.preco, duracao: s.duracao, ordem: s.ordem, ativo: s.ativo }); n++;
+                });
+                if (faltaCfg && !ss[ss.length - 1].exists()) { tx.set(cfgRef, paraCfg(CONFIG_PADRAO)); cfgCriada = true; }
+                return { servicos: n, config: cfgCriada };
+              });
+            });
+          });
+        });
       },
 
       /* ---------- slots: faixas ocupadas do dia (público, sem dado pessoal) ---------- */
@@ -457,7 +500,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { criarDB: criarDB, util: { blocos: blocos, slotId: slotId, horariosLivres: horariosLivres }, CONFIG_PADRAO: CONFIG_PADRAO };
+    module.exports = { criarDB: criarDB, util: { blocos: blocos, slotId: slotId, horariosLivres: horariosLivres }, CONFIG_PADRAO: CONFIG_PADRAO, SERVICOS_PADRAO: SERVICOS_PADRAO };
   } else {
     root.DB = criarDB(carregarCDN);
   }
