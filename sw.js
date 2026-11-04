@@ -4,7 +4,7 @@
    nem guarda Firestore, Auth, SDK do Firebase (gstatic) ou qualquer outro domínio.
    Produção: este arquivo também pode receber o push do FCM (evento 'push')
    e mostrar a notificação com o app fechado. */
-var CACHE = 'jc-shell-v4';
+var CACHE = 'jc-shell-v5';
 var SHELL = [
   './', 'index.html', 'agendar.html', 'painel.html', 'style.css', 'manifest.json',
   'comum.js', 'db-firebase.js', 'firebase-config.js', 'agendar.js', 'painel.js',
