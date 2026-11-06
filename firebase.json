@@ -12,7 +12,8 @@
       "README.md",
       "*.log",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "vercel.json"
     ],
     "headers": [
       {
@@ -33,7 +34,8 @@
           }
         ]
       }
-    ]
+    ],
+    "cleanUrls": true
   },
   "emulators": {
     "firestore": {
